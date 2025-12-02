@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Blood Pump Treatment Tracker</title>
+<style>
+  :root{
+    --bg:#f6fbff;
+    --card:#ffffff;
+    --accent: #2b9edb;
+    --muted:#6c7a86;
+    --done:#2ecc71;
+    --pending:#ffb020;
+    --skip:#e74c3c;
+    --glass: rgba(255,255,255,0.7);
+  }
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+  body{background:
+    radial-gradient(600px 300px at 10% 10%, rgba(43,158,219,0.08), transparent 8%),
+    radial-gradient(500px 240px at 90% 80%, rgba(43,158,219,0.05), transparent 8%),
+    var(--bg);
+    color:#0f1720;padding:20px;box-sizing:border-box;
+  }
+  .app{
+    max-width:980px;margin:8px auto;padding:18px;border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.8));
+    box-shadow:0 8px 30px rgba(16,24,40,0.06);backdrop-filter: blur(6px);
+  }
+  header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .title{
+    display:flex;gap:12px;align-items:center;
+  }
+  h1{font-size:20px;margin:0}
+  p.sub{margin:0;color:var(--muted);font-size:13px}
+  .art{
+    width:80px;height:64px;display:flex;align-items:center;justify-content:center;
+  }
+
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  button, .action{
+    background:var(--card);border:1px solid rgba(15,23,32,0.06);padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600;
+  }
+  button:hover{transform:translateY(-2px)}
+  .small{padding:6px 8px;font-weight:600;font-size:13px}
+  .muted{color:var(--muted);font-weight:600}
+  .top-stats{display:flex;gap:14px;align-items:center}
+  .progress-wrap{min-width:220px}
+  .progress{height:12px;background:#eef5fb;border-radius:20px;overflow:hidden}
+  .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent), #86d3ff);width:0%}
+
+  main{display:flex;gap:18px;flex-wrap:wrap}
+  .calendar{flex:1 1 620px;background:var(--card);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(16,24,40,0.03)}
+  .side{width:260px;flex-shrink:0;background:linear-gradient(180deg,var(--card),var(--glass));padding:14px;border-radius:12px}
+  .month-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+  .weekday{font-size:12px;color:var(--muted);text-align:center}
+  .day{min-height:72px;border-radius:10px;background:linear-gradient(180deg,#fbfdff,#ffffff);padding:8px;cursor:pointer;position:relative;border:1px solid rgba(12,20,30,0.03);display:flex;flex-direction:column;justify-content:space-between}
+  .day .num{font-weight:700}
+  .day .note{font-size:12px;color:var(--muted);margin-top:6px;max-height:36px;overflow:hidden}
+  .day.pending{border:2px dashed var(--pending)}
+  .day.done{border:2px solid var(--done);box-shadow:0 6px 12px rgba(46,204,113,0.08)}
+  .day.skip{border:2px solid var(--skip);opacity:0.92}
+  .legend{display:flex;gap:8px;align-items:center;margin-top:10px}
+  .legend span{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;background:rgba(15,23,32,0.03);font-size:13px}
+
+  .note-editor{margin-top:10px}
+  textarea{width:100%;min-height:80px;border-radius:8px;padding:8px;border:1px solid rgba(12,20,30,0.06);resize:vertical;font-size:14px}
+  .meta{font-size:13px;color:var(--muted);margin-top:8px}
+
+  .footer{margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .copyok{color:green;font-weight:700;font-size:13px}
+  .center{display:flex;align-items:center;justify-content:center}
+  .big-nums{font-size:28px;font-weight:800}
+  .tiny{font-size:12px;color:var(--muted)}
+
+  /* mobile */
+  @media (max-width:820px){
+    main{flex-direction:column}
+    .side{order:2;width:100%}
+  }
+</style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Blood Pump Treatment Tracker">
+    <header>
+      <div class="title">
+        <div class="art" aria-hidden="true">
+          <!-- decorative animated heart / pump -->
+          <svg viewBox="0 0 120 80" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#ff6b6b"/><stop offset="1" stop-color="#ffb86b"/></linearGradient>
+            </defs>
+            <g transform="translate(8,6) scale(0.9)">
+              <path id="heart" d="M40 10c-9 0-15 7-15 13 0 22 31 30 31 30s31-8 31-30c0-6-6-13-15-13-8 0-12 5-16 9-4-4-8-9-16-9z" fill="url(#g1)">
+                <animate attributeName="transform" dur="1.2s" repeatCount="indefinite" values="1 1;1.03 1.03;1 1" calcMode="spline" keySplines="0.42 0 0.58 1"/>
+              </path>
+              <rect x="80" y="30" rx="4" ry="4" width="12" height="26" fill="#cfeeff">
+                <animate attributeName="y" dur="1.2s" repeatCount="indefinite" values="30;26;30" />
+              </rect>
+              <path d="M92 36 L98 38 L92 40 z" fill="#aacfff" />
+            </g>
+          </svg>
+        </div>
+        <div>
+          <h1>Blood Pump Treatment Tracker</h1>
+          <p class="sub">Mark each day's treatment. Click a day to toggle status. Share your progress with the link.</p>
+        </div>
+      </div>
+
+      <div class="controls top-stats">
+        <div class="progress-wrap">
+          <div class="tiny">Month progress</div>
+          <div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+        </div>
+        <div class="center">
+          <div style="text-align:right">
+            <div class="big-nums" id="doneCount">0</div>
+            <div class="tiny">done this month</div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <button id="todayBtn" class="small">Today</button>
+          <button id="copyLink" class="small">Copy share URL</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="calendar" aria-label="Calendar">
+        <div class="month-head">
+          <div style="display:flex;gap:8px;align-items:center">
+            <button id="prevMonth" class="small">&lt;</button>
+            <div id="monthLabel" style="font-weight:800"></div>
+            <button id="nextMonth" class="small">&gt;</button>
+          </div>
+          <div class="muted" id="streakLabel">Streak: 0</div>
+        </div>
+
+        <div class="grid" id="weekdayRow" aria-hidden="true"></div>
+        <div class="grid" id="daysGrid" role="grid" aria-label="Days"></div>
+
+        <div class="legend">
+          <span><svg width="12" height="12"><rect width="12" height="12" rx="3" fill="var(--done)"/></svg> Done</span>
+          <span><svg width="12" height="12"><rect width="12" height="12" rx="3" fill="var(--pending)"/></svg> Pending</span>
+          <span><svg width="12" height="12"><rect width="12" height="12" rx="3" fill="var(--skip)"/></svg> Skipped</span>
+        </div>
+      </section>
+
+      <aside class="side" aria-label="Details">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div class="tiny">Selected</div>
+            <div id="selDate" style="font-weight:800">—</div>
+            <div class="meta" id="selStatus">No day selected</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:40px;font-weight:900" id="selSymbol">—</div>
+            <div class="tiny" id="selMini"> </div>
+          </div>
+        </div>
+
+        <div class="note-editor">
+          <label class="tiny">Note for selected day</label>
+          <textarea id="noteField" placeholder="Add a note (e.g., time, observations)"></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="saveNote" class="small">Save note</button>
+            <button id="clearNote" class="small">Clear</button>
+          </div>
+        </div>
+
+        <div class="meta" style="margin-top:12px">
+          <div><strong id="monthDoneCount">0</strong> days done this month</div>
+          <div style="margin-top:8px"><button id="exportBtn" class="action small">Export JSON</button> <button id="importBtn" class="action small">Import JSON</button></div>
+          <div style="margin-top:8px" class="tiny">Tip: use the "Copy share URL" to send your current saved data to another device. Opening that link will merge the shared data with local data.</div>
+        </div>
+
+        <div class="footer">
+          <div class="tiny">Local save: <span id="localTag">enabled</span></div>
+          <div id="copyStatus" class="tiny"></div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+<script>
+/* ----------------------
+  Simple Calendar Tracker
+  - stores statuses keyed by yyyy-mm-dd in localStorage under 'bp_status'
+  - statuses: 'pending' | 'done' | 'skip' | undefined = no mark
+  - share URL contains encoded JSON in the hash for easy sharing
+------------------------*/
+
+const STORAGE_KEY = 'bp_status_v1';
+const DAYS_OF_WEEK = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+let viewYear, viewMonth; // month is 0-11
+let statuses = loadLocal(); // { "2025-12-02": {status: 'done', note: '...' } ... }
+let selectedDate = null;
+
+function loadLocal(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  }catch(e){
+    console.error('load error',e);
+    return {};
+  }
+}
+
+function saveLocal(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(statuses));
+  }catch(e){
+    console.error('save error', e);
+  }
+}
+
+function dayKey(y,m,d){
+  const mm = String(m+1).padStart(2,'0');
+  const dd = String(d).padStart(2,'0');
+  return `${y}-${mm}-${dd}`;
+}
+
+function render(){
+  const now = new Date();
+  if (viewYear === undefined){
+    viewYear = now.getFullYear();
+    viewMonth = now.getMonth();
+  }
+  document.getElementById('weekdayRow').innerHTML = DAYS_OF_WEEK.map(w => `<div class="weekday">${w}</div>`).join('');
+  const first = new Date(viewYear, viewMonth, 1);
+  const last = new Date(viewYear, viewMonth+1, 0);
+  const startPad = first.getDay();
+  const total = last.getDate();
+  const grid = document.getElementById('daysGrid');
+  grid.innerHTML = '';
+
+  // fill blanks
+  for(let i=0;i<startPad;i++){
+    grid.appendChild(createEmptyCell());
+  }
+  for(let d=1; d<=total; d++){
+    const key = dayKey(viewYear, viewMonth, d);
+    const info = statuses[key] || {};
+    const el = document.createElement('div');
+    el.className = 'day';
+    if (info.status === 'pending') el.classList.add('pending');
+    if (info.status === 'done') el.classList.add('done');
+    if (info.status === 'skip') el.classList.add('skip');
+    el.setAttribute('role','gridcell');
+    el.innerHTML = `<div class="num">${d}</div>
+                    <div class="note">${escapeHtml(info.note || '')}</div>`;
+    el.dataset.key = key;
+    el.onclick = () => { cycleStatus(key); selectDay(key); };
+    grid.appendChild(el);
+  }
+
+  document.getElementById('monthLabel').textContent = `${first.toLocaleString(undefined,{month:'long'})} ${viewYear}`;
+
+  updateStats();
+  if (!selectedDate) {
+    // highlight today by selecting it automatically
+    const todayKey = dayKey(now.getFullYear(), now.getMonth(), now.getDate());
+    if (String(viewMonth) === String(now.getMonth()) && viewYear === now.getFullYear()){
+      selectDay(todayKey);
+    }
+  } else {
+    // maintain selection if visible
+    selectDay(selectedDate);
+  }
+}
+
+function createEmptyCell(){
+  const w = document.createElement('div');
+  w.className = 'day';
+  w.style.background = 'transparent';
+  w.style.border = 'none';
+  return w;
+}
+
+function cycleStatus(key){
+  const info = statuses[key] || {};
+  const current = info.status || 'none';
+  const order = ['pending','done','skip','none'];
+  let idx = order.indexOf(current);
+  idx = (idx + 1) % order.length;
+  const next = order[idx];
+  if (next === 'none') {
+    delete statuses[key];
+  } else {
+    statuses[key] = {...info, status: next};
+  }
+  saveLocal();
+  // update URL share hash so it reflects current data
+  updateShareHash();
+  render();
+}
+
+function selectDay(key){
+  selectedDate = key;
+  const info = statuses[key] || {};
+  const d = new Date(key + 'T00:00:00');
+  document.getElementById('selDate').textContent = d.toDateString();
+  document.getElementById('noteField').value = info.note || '';
+  const st = info.status || 'not marked';
+  document.getElementById('selStatus').textContent = `Status: ${st}`;
+  document.getElementById('selSymbol').textContent = st==='done' ? '✔' : (st==='pending' ? '●' : (st==='skip'?'✕':'-'));
+  document.getElementById('selMini').textContent = (info.note||'').slice(0,40);
+}
+
+function updateStats(){
+  const monthKeyPref = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-`;
+  let doneCount = 0, pendingCount=0, skipCount=0;
+  for(const k in statuses){
+    if (k.startsWith(monthKeyPref)){
+      const s = statuses[k].status;
+      if (s==='done') doneCount++;
+      if (s==='pending') pendingCount++;
+      if (s==='skip') skipCount++;
+    }
+  }
+  const totalDays = new Date(viewYear, viewMonth+1, 0).getDate();
+  const percent = Math.round((doneCount/totalDays)*100);
+  document.getElementById('progressBar').style.width = percent + '%';
+  document.getElementById('doneCount').textContent = doneCount;
+  document.getElementById('monthDoneCount').textContent = doneCount;
+  document.getElementById('streakLabel').textContent = `Streak: ${calcStreak()}`;
+}
+
+function calcStreak(){
+  // consecutive done days ending at today (in local time)
+  const today = new Date();
+  let streak = 0;
+  for(let i=0;i<365;i++){
+    const d = new Date();
+    d.setDate(today.getDate()-i);
+    const key = dayKey(d.getFullYear(), d.getMonth(), d.getDate());
+    if (statuses[key] && statuses[key].status === 'done') streak++;
+    else break;
+  }
+  return streak;
+}
+
+function escapeHtml(s){ return s.replace(/[&<>"']/g, function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m]}); }
+
+/* notes */
+document.getElementById('saveNote').onclick = () => {
+  if (!selectedDate) return;
+  const v = document.getElementById('noteField').value.trim();
+  statuses[selectedDate] = {...(statuses[selectedDate]||{}), note: v};
+  if (!v && !statuses[selectedDate].status) delete statuses[selectedDate];
+  saveLocal(); updateShareHash(); render();
+};
+document.getElementById('clearNote').onclick = () => {
+  if (!selectedDate) return;
+  if (statuses[selectedDate]) delete statuses[selectedDate].note;
+  if (Object.keys(statuses[selectedDate] || {}).length === 0) delete statuses[selectedDate];
+  saveLocal(); updateShareHash(); render();
+};
+
+/* month navigation */
+document.getElementById('prevMonth').onclick = () => { viewMonth--; if (viewMonth<0){viewMonth=11;viewYear--;} render(); };
+document.getElementById('nextMonth').onclick = () => { viewMonth++; if (viewMonth>11){viewMonth=0;viewYear++;} render(); };
+document.getElementById('todayBtn').onclick = () => {
+  const t = new Date();
+  viewYear = t.getFullYear(); viewMonth = t.getMonth();
+  selectDay(dayKey(t.getFullYear(), t.getMonth(), t.getDate()));
+  render();
+};
+
+/* share link handling */
+function updateShareHash(){
+  try{
+    // we include only items within a +/- 2 year window to keep URL reasonable
+    const payload = {};
+    const now = new Date();
+    const minYear = now.getFullYear() - 2;
+    const maxYear = now.getFullYear() + 2;
+    for(const k in statuses){
+      const yr = parseInt(k.slice(0,4));
+      if (yr >= minYear && yr <= maxYear) payload[k] = statuses[k];
+    }
+    const json = JSON.stringify(payload);
+    const encoded = btoa(encodeURIComponent(json));
+    // set hash (not pushing history heavy)
+    location.hash = encoded;
+    // show quick copied status
+    document.getElementById('copyStatus').textContent = '';
+  }catch(e){
+    console.error('share update failed',e);
+  }
+}
+
+function loadFromHash(){
+  const h = location.hash.replace('#','').trim();
+  if (!h) return;
+  try{
+    const decoded = decodeURIComponent(atob(h));
+    const parsed = JSON.parse(decoded);
+    // merge into local statuses (shared wins over empty local but don't overwrite local existing entries unless same date)
+    for(const k in parsed){
+      if (!statuses[k]) statuses[k] = parsed[k];
+    }
+    saveLocal();
+  }catch(e){
+    console.warn('Invalid share data', e);
+  }
+}
+
+/* handy: copy shareable url */
+document.getElementById('copyLink').onclick = async () => {
+  updateShareHash(); // ensure hash fresh
+  const url = location.href;
+  try{
+    await navigator.clipboard.writeText(url);
+    const el = document.getElementById('copyStatus');
+    el.textContent = 'Link copied to clipboard';
+    el.style.color = 'green';
+    setTimeout(()=>{ el.textContent=''; }, 2500);
+  }catch(e){
+    // fallback: prompt
+    prompt('Copy this link', url);
+  }
+};
+
+/* export/import JSON */
+document.getElementById('exportBtn').onclick = () => {
+  const dataStr = JSON.stringify(statuses, null, 2);
+  const blob = new Blob([dataStr], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'blood-pump-data.json'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+};
+
+document.getElementById('importBtn').onclick = () => {
+  const input = document.createElement('input'); input.type='file'; input.accept='.json,application/json';
+  input.onchange = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try{
+        const parsed = JSON.parse(ev.target.result);
+        // merge
+        for(const k in parsed){
+          statuses[k] = parsed[k];
+        }
+        saveLocal(); updateShareHash(); render();
+        alert('Import complete.');
+      }catch(err){
+        alert('Import failed: invalid file.');
+      }
+    };
+    reader.readAsText(f);
+  };
+  input.click();
+};
+
+/* initialization: load from hash, then render */
+window.addEventListener('load', () => {
+  loadFromHash();
+  const now = new Date();
+  viewYear = now.getFullYear(); viewMonth = now.getMonth();
+  // show share hash in UI if present
+  if (location.hash) document.getElementById('copyStatus').textContent = 'Loaded shared data';
+  render();
+});
+
+/* when user opens a shared link, merge and remove hash if desired (we keep it) */
+window.addEventListener('hashchange', () => {
+  loadFromHash(); render();
+});
+
+/* calculate initial updateShareHash so copy produces a link (but we won't force it on load) */
+updateShareHash();
+
+</script>
+</body>
+</html>
